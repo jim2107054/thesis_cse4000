@@ -1,0 +1,17 @@
+export const dynamic = "force-dynamic";
+
+import Image from "next/image";
+import { prisma } from "@/lib/db";
+import { getPublicImageUrl } from "@/lib/storage";
+import { overrideLabelAction, undoOverrideAction } from "@/lib/admin-actions";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default async function TieReviewPage({ searchParams }: { searchParams: { imageId?: string } }) {
+  const ties = await prisma.labelResult.findMany({ where: { OR: [{ isTie: true }, { isOverridden: true }] }, include: { image: true, finalClass: true }, orderBy: { updatedAt: "desc" } });
+  const selected = searchParams.imageId ? await prisma.imageAsset.findUnique({ where: { id: searchParams.imageId }, include: { annotations: { include: { user: true, imageClass: true } }, labelResult: { include: { finalClass: true } } } }) : ties[0]?.image ? await prisma.imageAsset.findUnique({ where: { id: ties[0].imageId }, include: { annotations: { include: { user: true, imageClass: true } }, labelResult: { include: { finalClass: true } } } }) : null;
+  const classes = await prisma.imageClass.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } });
+  return <main className="grid gap-6 p-6 xl:grid-cols-[20rem_1fr]"><aside className="space-y-3"><h1 className="text-2xl font-semibold tracking-tight">Tie Review</h1>{ties.map((tie) => <a key={tie.id} href={`/admin/tie-review?imageId=${tie.imageId}`} className="block rounded-md border p-3 text-sm hover:bg-muted"><div className="font-medium">{tie.image.filename}</div><div className="text-muted-foreground">{tie.isOverridden ? `Override: ${tie.finalClass?.name ?? ""}` : "Tie needs review"}</div></a>)}</aside><section>{selected ? <Card><CardHeader><CardTitle>{selected.filename}</CardTitle></CardHeader><CardContent className="grid gap-5 lg:grid-cols-[1fr_20rem]"><div className="rounded-lg border bg-muted/30 p-3"><Image src={getPublicImageUrl(selected.storagePath) ?? ""} alt={selected.filename} width={1000} height={700} className="max-h-[65vh] w-full object-contain" unoptimized /></div><div className="space-y-4"><Table><TableHeader><TableRow><TableHead>Annotator</TableHead><TableHead>Vote</TableHead></TableRow></TableHeader><TableBody>{selected.annotations.map((vote) => <TableRow key={vote.id}><TableCell>{vote.user.name ?? vote.user.email}</TableCell><TableCell>{vote.imageClass.name}</TableCell></TableRow>)}</TableBody></Table><form action={overrideLabelAction} className="space-y-2"><input type="hidden" name="imageId" value={selected.id} /><Select name="classId" required><SelectTrigger><SelectValue placeholder="Set final label" /></SelectTrigger><SelectContent>{classes.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select><Button type="submit" className="w-full">Set final label</Button></form>{selected.labelResult?.isOverridden && <form action={undoOverrideAction}><input type="hidden" name="imageId" value={selected.id} /><Button type="submit" variant="outline" className="w-full">Undo override</Button></form>}</div></CardContent></Card> : <p className="text-sm text-muted-foreground">No ties need review.</p>}</section></main>;
+}

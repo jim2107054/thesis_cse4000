@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  ANNOTATOR
+}
+
+enum AnnotationAction {
+  CREATED
+  CHANGED
+  DELETED
+  OVERRIDE
+  OVERRIDE_UNDONE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String
+  role          UserRole  @default(ANNOTATOR)
+  createdAt     DateTime  @default(now())
+  createdById   String?
+  isActive      Boolean   @default(true)
+
+  createdBy       User?               @relation("CreatedUsers", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers    User[]              @relation("CreatedUsers")
+  accounts        Account[]
+  sessions        Session[]
+  classesCreated  ImageClass[]        @relation("ClassCreator")
+  imagesUploaded  ImageAsset[]        @relation("ImageUploader")
+  annotations     Annotation[]
+  historyEntries  AnnotationHistory[] @relation("HistoryUser")
+  settingsUpdated Setting[]
+  overrides       LabelResult[]       @relation("OverrideUser")
+  loginEvents     LoginEvent[]
+
+  @@index([role])
+  @@index([createdById])
+  @@index([isActive])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model ImageClass {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  colorHex    String?
+  sortOrder   Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  createdById String
+
+  createdBy           User                @relation("ClassCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  annotations         Annotation[]
+  historyEntries      AnnotationHistory[] @relation("HistoryClass")
+  previousHistoryRows AnnotationHistory[] @relation("PreviousClass")
+  labelResults        LabelResult[]
+
+  @@index([createdById])
+  @@index([sortOrder])
+  @@index([isActive])
+}
+
+model ImageAsset {
+  id           String   @id @default(cuid())
+  filename     String
+  storagePath  String   @unique
+  width        Int?
+  height       Int?
+  uploadedAt   DateTime @default(now())
+  uploadedById String
+  datasetBatch String?
+
+  uploadedBy  User                @relation("ImageUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  annotations Annotation[]
+  history     AnnotationHistory[]
+  labelResult LabelResult?
+
+  @@unique([filename, datasetBatch])
+  @@index([uploadedById])
+  @@index([uploadedAt])
+  @@index([datasetBatch])
+}
+
+model Annotation {
+  id        String   @id @default(cuid())
+  imageId   String
+  userId    String
+  classId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  image      ImageAsset          @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageClass ImageClass          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  history    AnnotationHistory[]
+
+  @@unique([imageId, userId])
+  @@index([imageId])
+  @@index([userId])
+  @@index([classId])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+model AnnotationHistory {
+  id              String           @id @default(cuid())
+  annotationId    String?
+  imageId         String
+  userId          String
+  classId         String
+  action          AnnotationAction
+  previousClassId String?
+  timestamp       DateTime         @default(now())
+
+  annotation    Annotation? @relation(fields: [annotationId], references: [id], onDelete: SetNull)
+  image         ImageAsset  @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  user          User        @relation("HistoryUser", fields: [userId], references: [id], onDelete: Cascade)
+  imageClass    ImageClass  @relation("HistoryClass", fields: [classId], references: [id], onDelete: Restrict)
+  previousClass ImageClass? @relation("PreviousClass", fields: [previousClassId], references: [id], onDelete: SetNull)
+
+  @@index([annotationId])
+  @@index([imageId])
+  @@index([userId])
+  @@index([classId])
+  @@index([previousClassId])
+  @@index([timestamp])
+}
+
+model LabelResult {
+  id             String    @id @default(cuid())
+  imageId        String    @unique
+  finalClassId   String?
+  votesFor       Int       @default(0)
+  totalVotes     Int       @default(0)
+  isTie          Boolean   @default(false)
+  isOverridden   Boolean   @default(false)
+  overriddenById String?
+  overriddenAt   DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  image        ImageAsset  @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  finalClass   ImageClass? @relation(fields: [finalClassId], references: [id], onDelete: SetNull)
+  overriddenBy User?       @relation("OverrideUser", fields: [overriddenById], references: [id], onDelete: SetNull)
+
+  @@index([finalClassId])
+  @@index([overriddenById])
+  @@index([isTie])
+  @@index([updatedAt])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  updatedAt   DateTime @updatedAt
+  updatedById String
+
+  updatedBy User @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([updatedById])
+}
+
+model LoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  timestamp DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([timestamp])
+}
