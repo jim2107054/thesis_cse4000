@@ -44,6 +44,7 @@ model User {
   settingsUpdated Setting[]
   overrides       LabelResult[]       @relation("OverrideUser")
   loginEvents     LoginEvent[]
+  auditLogs       AuditLog[]
 
   @@index([role])
   @@index([createdById])
@@ -214,4 +215,26 @@ model LoginEvent {
 
   @@index([userId])
   @@index([timestamp])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String?
+  entityId   String?
+  actorId    String?
+  actorEmail String?
+  actorRole  UserRole?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([actorId])
+  @@index([createdAt])
 }

@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { logAudit, requestInfo } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/session";
 import { DATASET_BUCKET, requireSupabaseAdmin } from "@/lib/storage";
 
@@ -32,6 +33,21 @@ export async function POST(request: Request) {
 
   const image = await prisma.imageAsset.create({
     data: { filename: file.name, storagePath, datasetBatch, uploadedById: session.user.id },
+  });
+
+  await logAudit({
+    action: "image.uploaded",
+    actor: session.user,
+    entityType: "ImageAsset",
+    entityId: image.id,
+    ...requestInfo(request.headers),
+    metadata: {
+      filename: image.filename,
+      storagePath,
+      datasetBatch,
+      contentType: file.type,
+      size: file.size,
+    },
   });
 
   return NextResponse.json({ uploaded: true, image });

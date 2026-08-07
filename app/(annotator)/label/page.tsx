@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { LabelingClient } from "@/components/label/labeling-client";
+import { logAudit } from "@/lib/audit-log";
 import { prisma } from "@/lib/db";
 import { getVotesRequired } from "@/lib/settings";
 import { requireSession } from "@/lib/session";
@@ -15,6 +16,14 @@ export default async function LabelPage() {
     prisma.imageAsset.count(),
     prisma.annotation.count({ where: { userId: session.user.id } }),
   ]);
+
+  await logAudit({
+    action: "label.workspace_opened",
+    actor: session.user,
+    entityType: "User",
+    entityId: session.user.id,
+    metadata: { initialImageId: image?.id ?? null, totalImages: total, labeledImages: labeled },
+  });
 
   return <LabelingClient initial={{ image: image ? { ...image, publicUrl: getPublicImageUrl(image.storagePath) } : null, classes, progress: { labeled, total, required } }} />;
 }

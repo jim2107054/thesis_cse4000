@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getAuthSecret } from "@/lib/auth-secret";
+import { logAudit, requestInfo } from "@/lib/audit-log";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -33,16 +34,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const isValid = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!isValid) return null;
 
-        const headers = request?.headers;
+        const info = requestInfo(request?.headers);
         await prisma.loginEvent.create({
           data: {
             userId: user.id,
-            ipAddress:
-              headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-              headers?.get("x-real-ip") ??
-              null,
-            userAgent: headers?.get("user-agent") ?? null,
+            ipAddress: info.ipAddress,
+            userAgent: info.userAgent,
           },
+        });
+        await logAudit({
+          action: "auth.login",
+          actor: user,
+          entityType: "User",
+          entityId: user.id,
+          ...info,
+          metadata: { email: user.email, role: user.role },
         });
 
         return {

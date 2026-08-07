@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { AnnotationAction } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { logAudit, requestInfo } from "@/lib/audit-log";
 import { recomputeLabelResult } from "@/lib/label-results";
 import { requireSession } from "@/lib/session";
 
@@ -13,21 +14,40 @@ export async function POST(request: Request) {
   if (!imageClass) return NextResponse.json({ error: "Class not found" }, { status: 404 });
 
   const existing = await prisma.annotation.findUnique({ where: { imageId_userId: { imageId, userId: session.user.id } } });
-  const annotation = await prisma.annotation.upsert({
-    where: { imageId_userId: { imageId, userId: session.user.id } },
-    update: { classId },
-    create: { imageId, userId: session.user.id, classId },
-  });
+  const action = existing ? AnnotationAction.CHANGED : AnnotationAction.CREATED;
+  const annotation = await prisma.$transaction(async (tx) => {
+    const saved = await tx.annotation.upsert({
+      where: { imageId_userId: { imageId, userId: session.user.id } },
+      update: { classId },
+      create: { imageId, userId: session.user.id, classId },
+    });
 
-  await prisma.annotationHistory.create({
-    data: {
-      annotationId: annotation.id,
-      imageId,
-      userId: session.user.id,
-      classId,
-      action: existing ? AnnotationAction.CHANGED : AnnotationAction.CREATED,
-      previousClassId: existing?.classId ?? null,
-    },
+    await tx.annotationHistory.create({
+      data: {
+        annotationId: saved.id,
+        imageId,
+        userId: session.user.id,
+        classId,
+        action,
+        previousClassId: existing?.classId ?? null,
+      },
+    });
+
+    await logAudit({
+      action: existing ? "annotation.changed" : "annotation.created",
+      actor: session.user,
+      entityType: "Annotation",
+      entityId: saved.id,
+      ...requestInfo(request.headers),
+      metadata: {
+        imageId,
+        classId,
+        className: imageClass.name,
+        previousClassId: existing?.classId ?? null,
+      },
+    }, tx);
+
+    return saved;
   });
 
   const result = await recomputeLabelResult(imageId);

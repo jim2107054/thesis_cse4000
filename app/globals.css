@@ -83,6 +83,140 @@
   }
 }
 
+@layer components {
+  .admin-pos {
+    font-family: "Nunito", var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f9fafb;
+    color: #212b36;
+  }
+
+  .admin-pos h1 {
+    font-size: 28px;
+    line-height: 33.6px;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: #212b36;
+  }
+
+  .admin-pos h2 {
+    font-size: 24px;
+    line-height: 28.8px;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: #212b36;
+  }
+
+  .pos-page {
+    width: 100%;
+    max-width: none;
+    padding: 24px;
+  }
+
+  @media (max-width: 767px) {
+    .pos-page {
+      padding: 16px;
+    }
+  }
+
+  .pos-card {
+    border: 1px solid #e6eaed;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 20px;
+    box-shadow: none;
+    transition: box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .pos-card:hover {
+    box-shadow: rgba(0, 0, 0, 0.08) 0px 2px 8px 0px;
+  }
+
+  .pos-button-primary {
+    height: 30px;
+    border-radius: 5px;
+    border: 1px solid #fe9f43;
+    background: #fe9f43;
+    color: #ffffff;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 16px;
+    box-shadow: rgba(254, 159, 67, 0.15) 0px 4px 20px 0px;
+  }
+
+  .pos-button-primary:hover {
+    background: #fd8c2b;
+    box-shadow: rgba(254, 159, 67, 0.25) 0px 6px 24px 0px;
+  }
+
+  .pos-button-secondary {
+    height: 30px;
+    border-radius: 5px;
+    border: 1px solid #092c4c;
+    background: #092c4c;
+    color: #ffffff;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 16px;
+    box-shadow: rgba(9, 44, 76, 0.15) 0px 4px 20px 0px;
+  }
+
+  .pos-button-secondary:hover {
+    background: #051a32;
+    box-shadow: rgba(9, 44, 76, 0.25) 0px 6px 24px 0px;
+  }
+
+  .pos-icon-button {
+    height: 32px;
+    width: 32px;
+    border-radius: 8px;
+    background: #f7f7f7;
+    color: #092c4c;
+    padding: 0;
+  }
+
+  .pos-icon-button:hover {
+    background: #efefef;
+    box-shadow: rgba(0, 0, 0, 0.05) 0px 2px 8px 0px;
+  }
+
+  .pos-input {
+    min-height: 38px;
+    border: 1px solid #e6eaed;
+    border-radius: 5.6px;
+    background: #ffffff;
+    color: #212b36;
+    padding: 7.2px 13.6px;
+    font-size: 14px;
+    line-height: 22.4px;
+  }
+
+  .pos-input:focus,
+  .pos-input:focus-visible {
+    border-color: #0d6efd;
+    box-shadow: 0px 0px 0px 3px rgba(13, 110, 253, 0.1);
+    outline: none;
+  }
+
+  .pos-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e6eaed;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .pos-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

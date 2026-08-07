@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logAudit, requestInfo } from "@/lib/audit-log";
 import { prisma } from "@/lib/db";
 import { getVotesRequired } from "@/lib/settings";
 import { requireSession } from "@/lib/session";
@@ -36,6 +37,22 @@ export async function GET(request: Request) {
       include: includeFor(session.user.id),
     });
   }
+
+  await logAudit({
+    action: "label.image_loaded",
+    actor: session.user,
+    entityType: "ImageAsset",
+    entityId: image?.id ?? null,
+    ...requestInfo(request.headers),
+    metadata: {
+      currentId,
+      direction,
+      onlyUnvoted,
+      jump,
+      returnedImageId: image?.id ?? null,
+      returnedFilename: image?.filename ?? null,
+    },
+  });
 
   return NextResponse.json({
     image: image ? serializeImage(image) : null,
