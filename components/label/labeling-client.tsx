@@ -23,8 +23,8 @@ export function LabelingClient({ initial }: { initial: Payload }) {
   const [data, setData] = useState(initial);
   const [onlyUnvoted, setOnlyUnvoted] = useState(true);
   const [jump, setJump] = useState("");
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(initial.image?.annotations[0]?.classId ?? null);
   const [isPending, startTransition] = useTransition();
-  const selectedClassId = data.image?.annotations[0]?.classId;
   const percent = data.progress.total ? (data.progress.labeled / data.progress.total) * 100 : 0;
 
   const load = useCallback((direction = "next", filename?: string) => {
@@ -38,10 +38,24 @@ export function LabelingClient({ initial }: { initial: Payload }) {
   }, [data.image?.id, onlyUnvoted]);
 
   const vote = useCallback((classId: string) => {
+    if (!data.image?.id) return;
     const previous = data;
-    load("next");
-    fetch("/api/label/vote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageId: previous.image?.id, classId }) }).catch(() => setData(previous));
-  }, [data, load]);
+    setSelectedClassId(classId);
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/label/vote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageId: previous.image?.id, classId }) });
+        if (!response.ok) throw new Error("Vote failed");
+        if (onlyUnvoted) load("next");
+      } catch {
+        setSelectedClassId(previous.image?.annotations[0]?.classId ?? null);
+        setData(previous);
+      }
+    });
+  }, [data, load, onlyUnvoted]);
+
+  useEffect(() => {
+    setSelectedClassId(data.image?.annotations[0]?.classId ?? null);
+  }, [data.image?.id, data.image?.annotations]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -87,7 +101,13 @@ export function LabelingClient({ initial }: { initial: Payload }) {
           </div>
           <div className="grid gap-2">
             {data.classes.map((item, index) => (
-              <Button key={item.id} variant={selectedClassId === item.id ? "default" : "outline"} onClick={() => vote(item.id)} disabled={!data.image || isPending} className="justify-start">
+              <Button
+                key={item.id}
+                variant="outline"
+                onClick={() => vote(item.id)}
+                disabled={!data.image || isPending}
+                className={`justify-start border transition-colors ${selectedClassId === item.id ? "border-[#198754] bg-[#198754] text-white hover:bg-[#157347] hover:text-white" : "hover:border-[#198754] hover:bg-[#198754]/10 hover:text-[#198754]"}`}
+              >
                 <span className="mr-2 inline-flex size-6 items-center justify-center rounded border text-xs">{index + 1}</span>{item.name}
               </Button>
             ))}

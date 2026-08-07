@@ -9,10 +9,10 @@ import { logAudit } from "@/lib/audit-log";
 import { prisma } from "@/lib/db";
 import { recomputeLabelResult } from "@/lib/label-results";
 import { SETTING_KEYS, upsertSetting } from "@/lib/settings";
-import { requireAdmin } from "@/lib/session";
+import { requireAdmin, requireSession } from "@/lib/session";
 
 export async function signOutAction() {
-  const session = await requireAdmin();
+  const session = await requireSession();
   await logAudit({
     action: "auth.logout",
     actor: session.user,
