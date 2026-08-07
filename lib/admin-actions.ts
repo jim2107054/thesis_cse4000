@@ -28,6 +28,8 @@ export async function createClassAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const colorHex = String(formData.get("colorHex") ?? "").trim() || null;
   if (!name) return;
+  const duplicate = await prisma.imageClass.findUnique({ where: { name } });
+  if (duplicate) redirect(`/admin/classes?classError=duplicate&name=${encodeURIComponent(name)}`);
   const count = await prisma.imageClass.count();
   const imageClass = await prisma.imageClass.create({ data: { name, colorHex, sortOrder: count, createdById: session.user.id } });
   await logAudit({
@@ -47,6 +49,8 @@ export async function updateClassAction(formData: FormData) {
   const colorHex = String(formData.get("colorHex") ?? "").trim() || null;
   const isActive = formData.get("isActive") === "on";
   if (!id || !name) return;
+  const duplicate = await prisma.imageClass.findFirst({ where: { name, NOT: { id } } });
+  if (duplicate) redirect(`/admin/classes?classError=duplicate&name=${encodeURIComponent(name)}`);
   const before = await prisma.imageClass.findUnique({ where: { id } });
   const imageClass = await prisma.imageClass.update({ where: { id }, data: { name, colorHex, isActive } });
   await logAudit({

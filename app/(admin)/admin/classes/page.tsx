@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-export default async function ClassesPage() {
+export default async function ClassesPage({ searchParams }: { searchParams: { classError?: string; name?: string } }) {
   const classes = await prisma.imageClass.findMany({ orderBy: { sortOrder: "asc" }, include: { _count: { select: { annotations: true } } } });
   return (
     <main className="pos-page space-y-6">
@@ -16,6 +16,12 @@ export default async function ClassesPage() {
         <h1>Classes</h1>
         <p className="text-sm text-[#646B72]">Manage labels, color coding, and display order.</p>
       </div>
+
+      {searchParams.classError === "duplicate" && (
+        <div className="pos-card border-[#DC3545] bg-[#DC3545]/10 text-sm font-semibold text-[#DC3545]">
+          A class named {searchParams.name ? `"${searchParams.name}"` : "that"} already exists. Use a different name.
+        </div>
+      )}
 
       <form action={createClassAction} className="pos-card grid gap-3 md:grid-cols-[1fr_220px_auto] md:items-center">
         <Input name="name" placeholder="Class name" required className="pos-input" />
