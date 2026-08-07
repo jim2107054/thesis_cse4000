@@ -5,9 +5,28 @@ export const SETTING_KEYS = {
   countRemovedAnnotatorVotes: "count_removed_annotator_votes",
 } as const;
 
+function isDatabaseUnavailableError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const candidate = error as { code?: unknown; message?: unknown };
+  return (
+    candidate.code === "P1001" ||
+    (typeof candidate.message === "string" && candidate.message.includes("Can't reach database server"))
+  );
+}
+
 export async function getSetting(key: string, fallback: string) {
-  const setting = await prisma.setting.findUnique({ where: { key } });
-  return setting?.value ?? fallback;
+  try {
+    const setting = await prisma.setting.findUnique({ where: { key } });
+    return setting?.value ?? fallback;
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      console.warn(`Database unavailable while reading setting "${key}". Using fallback value.`);
+      return fallback;
+    }
+
+    throw error;
+  }
 }
 
 export async function getVotesRequired() {
